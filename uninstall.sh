@@ -2,7 +2,7 @@
 # Reverses install.sh. Safe to run even if only some steps were applied.
 set -euo pipefail
 
-DATA_DIR="$HOME/.local/share/tpm-keyring-unlock"
+DATA_DIR="$HOME/.local/share/tpm-kwallet-unlock"
 HELPER_DST="/usr/local/sbin/tpm-keyring-unseal"
 
 # shellcheck source=bin/lib.sh
@@ -20,8 +20,8 @@ echo
 
 # --- 1. remove the PAM stack line ---------------------------------------
 # Scans every /etc/pam.d/ service, not just ones named after fingerprints:
-# install.sh patches any service with an auth-phase pam_gnome_keyring.so
-# line (gdm-password included, once system-wide fingerprint auth is on).
+# install.sh patches any service with an auth-phase pam_kwallet.so
+# line (sddm-password included, once system-wide fingerprint auth is on).
 for f in /etc/pam.d/*; do
   [ -f "$f" ] || continue
   if grep -q pam_tpm_keyring_authtok.so "$f"; then
@@ -53,9 +53,9 @@ if [ -f "$HELPER_DST" ]; then
 fi
 
 # --- 3. unmask the systemd units ----------------------------------------
-if systemctl --user is-enabled gnome-keyring-daemon.service 2>/dev/null | grep -q masked; then
-  if confirm "Unmask gnome-keyring-daemon systemd units (restores the original,\npre-tpm-keyring-unlock behavior on this machine)?"; then
-    systemctl --user unmask gnome-keyring-daemon.socket gnome-keyring-daemon.service
+if systemctl --user is-enabled kwalletd5.service 2>/dev/null | grep -q masked; then
+  if confirm "Unmask kwalletd5 systemd units (restores the original,\npre-tpm-kwallet-unlock behavior on this machine)?"; then
+    systemctl --user unmask kwalletd5.socket kwalletd5.service
     echo "Unmasked."
   fi
 fi
@@ -81,5 +81,5 @@ if getent group tss >/dev/null && groups "$USER" | grep -qw tss; then
 fi
 
 echo
-echo "Done. Note: your GNOME keyring password itself was never changed by"
+echo "Done. Note: your KWallet password itself was never changed by"
 echo "this tool, so nothing needs to be restored there."

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Installs tpm-keyring-unlock: TPM-backed auto-unlock of the GNOME login
-# keyring, working for both password and fingerprint logins, without
-# blanking the keyring password. See README.md for how/why this works.
+# Installs tpm-kwallet-unlock: TPM-backed auto-unlock of the KDE KWallet,
+# working for both password and fingerprint logins, without
+# blanking the wallet password. See README.md for how/why this works.
 #
 # Safe by design at every step except one: the single line added to the
 # fingerprint PAM stack is "optional" and cannot itself grant or block
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="$HOME/.local/share/tpm-keyring-unlock"
+DATA_DIR="$HOME/.local/share/tpm-kwallet-unlock"
 HELPER_DST="/usr/local/sbin/tpm-keyring-unseal"
 PCR_BANK="sha256:7"
 
@@ -24,7 +24,7 @@ confirm() {
   [[ "$ans" =~ ^[Yy]$ ]]
 }
 
-echo "== tpm-keyring-unlock installer =="
+echo "== tpm-kwallet-unlock installer =="
 echo
 
 # --- 0. hard requirements - checked before touching anything, including
@@ -141,42 +141,42 @@ sudo install -o root -g root -m 0644 \
 
 # --- 4. stop systemd from racing PAM to create the keyring daemon ------
 echo
-echo "-- Masking systemd's eager keyring daemon startup --"
-if systemctl --user list-unit-files 'gnome-keyring-daemon.*' 2>/dev/null | grep -q gnome-keyring-daemon; then
-  systemctl --user mask gnome-keyring-daemon.socket gnome-keyring-daemon.service
-  echo "Masked. (undo any time: systemctl --user unmask gnome-keyring-daemon.socket gnome-keyring-daemon.service)"
+echo "-- Masking systemd's eager wallet daemon startup --"
+if systemctl --user list-unit-files 'kwalletd5.*' 2>/dev/null | grep -q kwalletd5; then
+  systemctl --user mask kwalletd5.socket kwalletd5.service
+  echo "Masked kwalletd5 units."
 else
-  echo "No systemd user units named gnome-keyring-daemon.* found - skipping."
-  echo "(This step only matters on systems where systemd pre-starts the keyring"
+  echo "No systemd user units named kwalletd5.* found - skipping."
+  echo "(This step only matters on systems where systemd pre-starts the wallet"
   echo "daemon before login; if yours doesn't, you may not need it at all.)"
 fi
 
-# --- 5. seal the real keyring password ----------------------------------
+# --- 5. seal the real wallet password ----------------------------------
 echo
 if [ -f "$DATA_DIR/seal.priv" ]; then
   echo "A sealed secret already exists at $DATA_DIR."
   confirm "Re-seal (overwrite)?" && "$REPO_DIR/bin/seal.sh"
 else
-  echo "-- Sealing your keyring password into the TPM --"
+  echo "-- Sealing your wallet password into the TPM --"
   "$REPO_DIR/bin/seal.sh"
 fi
 
-# --- 6. wire the PAM module into every login stack that feeds the keyring -
+# --- 6. wire the PAM module into every login stack that feeds the wallet -
 echo
-echo "-- Login PAM stacks that feed the keyring --"
-echo "Looking for /etc/pam.d/ services with an auth-phase pam_gnome_keyring.so"
+echo "-- Login PAM stacks that feed the wallet --"
+echo "Looking for /etc/pam.d/ services with an auth-phase pam_kwallet.so"
 echo "line. Every one of them needs this module, not just a service literally"
 echo "named '*fingerprint*': if you ever enable fingerprint auth system-wide"
 echo "(e.g. 'sudo pam-auth-update --enable fprintd'), services like"
-echo "gdm-password gain the ability to succeed via fingerprint too, which"
+echo "sddm-password gain the ability to succeed via fingerprint too, which"
 echo "reopens the exact same PAM_AUTHTOK gap on a service that has nothing"
 echo "to do with fingerprints in its name."
 echo
 
-mapfile -t candidates < <(grep -lE "$PAM_GNOME_KEYRING_AUTH_RE" /etc/pam.d/* 2>/dev/null)
+mapfile -t candidates < <(grep -lE "$PAM_KWALLET_AUTH_RE" /etc/pam.d/* 2>/dev/null)
 
 if [ "${#candidates[@]}" -eq 0 ]; then
-  echo "No /etc/pam.d/ service has an auth-phase pam_gnome_keyring.so line."
+  echo "No /etc/pam.d/ service has an auth-phase pam_kwallet.so line."
   echo "Password logins are already fixed by the systemd mask above; skipping"
   echo "this step. Wire it in manually if you find the right file - see"
   echo "README.md 'How it works'."
@@ -193,17 +193,17 @@ for TARGET in "${candidates[@]}"; do
   echo "About to make this change to $TARGET:"
   echo
   echo "+ auth optional   pam_tpm_keyring_authtok.so   <-- new line"
-  echo "  auth optional   pam_gnome_keyring.so         <-- existing line, unchanged"
+  echo "  auth optional   pam_kwallet.so               <-- existing line, unchanged"
   echo
   echo "This line is 'optional': it can never grant or deny login by itself."
   echo "It only makes the TPM-unsealed password available to the"
-  echo "pam_gnome_keyring.so line right after it, for whenever this service"
+  echo "pam_kwallet.so line right after it, for whenever this service"
   echo "authenticates you via something other than a typed password (e.g."
   echo "fingerprint). A backup of the original file is kept alongside it."
   echo
   if confirm "Apply this change to $TARGET?"; then
     sudo cp "$TARGET" "$TARGET.bak-$(date +%Y%m%d%H%M%S)"
-    sudo sed -E -i "/${PAM_GNOME_KEYRING_AUTH_RE}/i auth    optional        pam_tpm_keyring_authtok.so" "$TARGET"
+    sudo sed -E -i "/${PAM_KWALLET_AUTH_RE}/i auth    optional        pam_tpm_keyring_authtok.so" "$TARGET"
     echo "Done."
   else
     echo "Skipped $TARGET. It will keep showing the manual unlock prompt"

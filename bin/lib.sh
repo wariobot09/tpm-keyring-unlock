@@ -37,6 +37,35 @@ find_pam_module_dir() {
 # spaces, which a plain \S+ stops at and fails to match.
 PAM_GNOME_KEYRING_AUTH_RE='^\s*auth\s+(\S+|\[[^]]*\])\s+pam_gnome_keyring\.so'
 
+# Matches an auth-phase line invoking pam_kwallet.so (KDE Plasma), with the
+# same control-field flexibility as the GNOME regex above.
+PAM_KWALLET_AUTH_RE='^\s*auth\s+(\S+|\[[^]]*\])\s+pam_kwallet\.so'
+
+# Returns the KWallet name for a user (default: "kdewallet").
+# Reads the custom name from kdeglobals if set.
+get_kwallet_name() {
+  local user="${1:-$USER}"
+  local home_dir
+
+  if [ "$user" = "$USER" ] && [ -n "$HOME" ]; then
+    home_dir="$HOME"
+  else
+    home_dir="$(getent passwd "$user" | cut -d: -f6)"
+  fi
+
+  if [ -f "$home_dir/.config/kdeglobals" ]; then
+    local wallet_name
+    wallet_name=$(grep -A1 '\[Wallet\]' "$home_dir/.config/kdeglobals" 2>/dev/null | grep 'Open Wallet' | sed 's/.*=//' | tr -d '[:space:]')
+    if [ -n "$wallet_name" ]; then
+      echo "$wallet_name"
+      return 0
+    fi
+  fi
+
+  echo "kdewallet"
+  return 0
+}
+
 # Exits with an explanatory message unless Secure Boot is verifiably on.
 # This tool's entire security model rests on PCR7 (the Secure Boot state) -
 # a seal made while Secure Boot is off is not a meaningful lock, so this

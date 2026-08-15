@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Seals your GNOME keyring password into the TPM, bound to a PCR7 (Secure Boot
 # state) policy. Run this yourself, interactively, in your own terminal - it
-# reads the password with 'read -s' so it never appears on screen, in shell
-# history, or anywhere outside this process.
+# Seals your KWallet password into the TPM, bound to a PCR7 (Secure Boot
+# state) policy.
 set -euo pipefail
 
-DATA_DIR="$HOME/.local/share/tpm-keyring-unlock"
+DATA_DIR="$HOME/.local/share/tpm-kwallet-unlock"
 PCR_BANK="sha256:7"
 
 # shellcheck source=lib.sh
@@ -34,7 +34,7 @@ if [ -f "$DATA_DIR/seal.priv" ]; then
   rm -f "$DATA_DIR/pcr.policy" "$DATA_DIR/seal.pub" "$DATA_DIR/seal.priv"
 fi
 
-read -rsp "Password to seal (should match your GNOME login keyring password): " PASSWORD
+read -rsp "Password to seal (should match your KWallet password): " PASSWORD
 echo
 read -rsp "Confirm: " PASSWORD2
 echo

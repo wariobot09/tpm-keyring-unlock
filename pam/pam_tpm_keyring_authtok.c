@@ -1,15 +1,15 @@
 /*
  * pam_tpm_keyring_authtok - injects a TPM-unsealed password into PAM_AUTHTOK
- * so a following "auth optional pam_gnome_keyring.so" can unlock the login
- * keyring even when the actual authentication was fingerprint-based (which
+ * so a following "auth optional pam_kwallet.so" can unlock the KWallet even
+ * when the actual authentication was fingerprint-based (which
  * never produces a password PAM_AUTHTOK on its own).
  *
  * This module NEVER makes an authentication decision itself: it always
  * returns PAM_IGNORE, regardless of outcome. It must be listed with control
  * "optional" and placed after the real authenticating module (pam_fprintd.so)
- * and before "pam_gnome_keyring.so" in the auth stack. If it fails for any
+ * and before "pam_kwallet.so" in the auth stack. If it fails for any
  * reason (no sealed secret, TPM error, wrong PCR state), login proceeds
- * exactly as it would without this module - it only adds keyring auto-unlock,
+ * exactly as it would without this module - it only adds wallet auto-unlock,
  * it cannot subtract login capability.
  *
  * If PAM_AUTHTOK is already set (e.g. a real password was typed), this
@@ -91,7 +91,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     }
 
     pam_syslog(pamh, LOG_INFO,
-               "PAM_AUTHTOK not set yet, attempting TPM keyring unseal for "
+               "PAM_AUTHTOK not set yet, attempting TPM wallet unseal for "
                "user %s", user);
 
     int pipefd[2];
@@ -176,7 +176,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     if (total <= 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         pam_syslog(pamh, LOG_NOTICE,
                    "tpm-keyring-unseal helper produced no usable output "
-                   "(exit %d) - keyring auto-unlock not available this login",
+                   "(exit %d) - wallet auto-unlock not available this login",
                    WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         memset(buf, 0, sizeof(buf));
         return PAM_IGNORE;
@@ -197,7 +197,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     }
 
     pam_syslog(pamh, LOG_INFO,
-               "TPM keyring unseal succeeded for user %s, PAM_AUTHTOK set",
+               "TPM wallet unseal succeeded for user %s, PAM_AUTHTOK set",
                user);
 
     return PAM_IGNORE;

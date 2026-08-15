@@ -4,19 +4,20 @@
 # during authentication) with the target username as $1. Prints the sealed
 # password to stdout on success, nothing on failure. Never invoked directly
 # by a user - the PAM module is the only intended caller.
+# KDE Plasma / KWallet port: data dir changed to .local/share/tpm-kwallet-unlock.
 set -euo pipefail
 
 USERNAME="${1:?username required}"
 HOME_DIR="$(getent passwd "$USERNAME" | cut -d: -f6)"
 [ -n "$HOME_DIR" ] || exit 1
 
-DATA_DIR="$HOME_DIR/.local/share/tpm-keyring-unlock"
+DATA_DIR="$HOME_DIR/.local/share/tpm-kwallet-unlock"
 PCR_BANK="sha256:7"
 
 [ -f "$DATA_DIR/seal.priv" ] || exit 1
 
-# GDM spawns parallel PAM conversations on one login screen (e.g.
-# gdm-fingerprint and gdm-password at once), and this helper is wired into
+# SDDM spawns parallel PAM conversations on one login screen (e.g.
+# sddm-fingerprint and sddm-password at once), and this helper is wired into
 # both. Two concurrent tpm2_* sequences against the same TPM have been
 # observed to fail with "Esys_Unseal ... PCR have changed since checked" -
 # one session's PCR-policy check gets invalidated by the other session's
